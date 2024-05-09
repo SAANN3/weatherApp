@@ -62,6 +62,9 @@ open class WeatherApiBaseClass(
         suspend fun getLatLong(city: String):LatNLong?{
             return null
         }
+        suspend fun getLatLong(city: String,length: Int):Array<LatNLong>?{
+            return null
+        }
     }
     protected fun celsiusToKelvin(celsius:Float):Float{
         return round(((celsius * 9/5) + 32)*10)/10

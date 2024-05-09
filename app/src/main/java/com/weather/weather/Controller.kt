@@ -100,6 +100,16 @@ class Controller {
     fun getWeatherKey():String{
         return weatherApi!!.gWeatherKey()
     }
+    suspend fun getCityFromNet(city:String, weatherProvider: WeatherProviders):Array<WeatherApiBaseClass.LatNLong>?{
+        return when(weatherProvider){
+            WeatherProviders.OPENMETEO -> {
+                GlobalScope.async {OpenMeteoApi.getLatLong(city,5)}.await()
+            }
+            WeatherProviders.OPENWEATHER -> {
+                null
+            }
+        }
+    }
     fun getWeatherProvider():WeatherProviders{
         return weatherApi!!.gWeatherProvider()
     }

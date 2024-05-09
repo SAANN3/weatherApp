@@ -35,30 +35,46 @@ class OpenMeteoApi(settingsData:SettingsData, previousRequest : ResponseRaw? = n
     }
     companion object{
         suspend fun getLatLong(city: String):LatNLong?{
+            return _getLatLong(city)?.get(0)
+        }
+        suspend fun getLatLong(city: String,length: Int):Array<LatNLong>?{
+            return _getLatLong(city,length)
+        }
+        private suspend fun _getLatLong(city: String,length:Int = 1):Array<LatNLong>?{
             try{
                 val httpClient:OkHttpClient = OkHttpClient().newBuilder()
                     .callTimeout(5000,TimeUnit.SECONDS)
                     .readTimeout(5000,TimeUnit.SECONDS)
                     .build()
-                val httpUrl:String = "https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json"
+                val httpUrl:String = "https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=${length}&language=en&format=json"
                 val request = Request.Builder().url(httpUrl).build()
                 val response:String = httpClient.newCall(request).execute().use {
                     it.body!!.string()
                 }
-                Log.e("EEE",response)
                 val parsedResponse:JsonObject = Json.parseToJsonElement(response).jsonObject
-                Log.e("EEE",parsedResponse.toString())
-                val firstOccurrence:JsonObject = parsedResponse["results"]!!.jsonArray[0].jsonObject
-                val latitude:Float = firstOccurrence["latitude"]!!.jsonPrimitive.float
-                val longitude:Float = firstOccurrence["longitude"]!!.jsonPrimitive.float
-                val findedCity:String = firstOccurrence["name"]!!.jsonPrimitive.content
-                return LatNLong(latitude, longitude,findedCity)
+                val parsedResults:MutableList<LatNLong> = mutableListOf()
+                val resultsOccurrence:JsonArray = parsedResponse["results"]!!.jsonArray
+                Log.e("EEE",response)
+                resultsOccurrence.forEach{
+                    val resultObject:JsonObject = it.jsonObject;
+                    val latitude:Float = resultObject["latitude"]!!.jsonPrimitive.float
+                    val longitude:Float = resultObject["longitude"]!!.jsonPrimitive.float
+                    val findedCity:String = resultObject["name"]!!.jsonPrimitive.content
+                    parsedResults.add(
+                        LatNLong(
+                        latitude = latitude,
+                        longitude = longitude,
+                        city = findedCity
+                    ))
+                }
+                return parsedResults.toTypedArray()
             }catch (e:Exception){
                 Log.e("EEE",e.stackTraceToString())
                 //cant
             }
             return null
         }
+
     }
     override fun gRawResponse():ResponseRaw?{
         return responseRaw
