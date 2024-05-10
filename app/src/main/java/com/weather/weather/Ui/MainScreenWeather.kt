@@ -36,6 +36,9 @@ class MainScreenWeather(
     fun onForecastChange(){
         currentDay.value = if(controller.getHourlyForecast().size==0) null else{controller.getHourlyForecast().first()}
     }
+    fun resetForecast(){
+        currentDay.value = null
+    }
     @Composable
     fun Render(modifier: Modifier = Modifier) {
         if(currentDay.value != null) {

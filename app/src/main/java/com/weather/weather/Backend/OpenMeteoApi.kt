@@ -17,7 +17,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.UnknownHostException
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -29,7 +28,10 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
     private var responseRaw: ResponseRaw? = null
     init{
         this.responseRaw = previousResponse
-        GlobalScope.launch { start() }
+    }
+    override fun start(forceCache:Boolean){
+        val httpUrl:String = "https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,weather_code"
+        GlobalScope.launch { start(httpUrl,responseRaw,forceCache) }
     }
     companion object{
         suspend fun getLatLong(city: String,weatherApiKey: String?):LatNLong?{
@@ -41,8 +43,8 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
         private suspend fun _getLatLong(city: String,weatherApiKey: String? = null,length:Int = 1):Array<LatNLong>?{
             try{
                 val httpClient:OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5000,TimeUnit.SECONDS)
-                    .readTimeout(5000,TimeUnit.SECONDS)
+                    .callTimeout(5,TimeUnit.SECONDS)
+                    .readTimeout(5,TimeUnit.SECONDS)
                     .build()
                 val httpUrl:String = "https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=${length}&language=en&format=json"
                 val request = Request.Builder().url(httpUrl).build()
@@ -76,40 +78,9 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
     override fun gRawResponse():ResponseRaw?{
         return responseRaw
     }
-    private suspend fun start(){
-        try{
-            val prevResponse:ResponseRaw? = responseRaw
-            val newResponse:ResponseRaw
-            if(prevResponse != null && prevResponse.dateResponse > (ZonedDateTime.now().toEpochSecond() - 3600)){
-                newResponse  = prevResponse
-            } else{
-                val httpClient:OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5000,TimeUnit.SECONDS)
-                    .readTimeout(5000,TimeUnit.SECONDS)
-                    .build()
-                val httpUrl:String = "https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,weather_code"
-                val request = Request.Builder().url(httpUrl).build()
-                val response:String = httpClient.newCall(request).execute().use {
-                    it.body!!.string()
-                }
-                newResponse  = ResponseRaw(
-                    rawResponse = response,
-                    dateResponse = ZonedDateTime.now().toEpochSecond()
-                )
-            }
-            processData(newResponse)
-        }
-        catch (e:Exception){
-            if(e is UnknownHostException){
-                notifyErrorListeners(WeatherErrors.UnknownHost)
-            }
-            else{
-                notifyErrorListeners(WeatherErrors.Unknown)
-                Log.e("weatherError",e.stackTraceToString())
-            }
-        }
-    }
-    private fun processData(responseRaw: ResponseRaw){
+    protected override fun processData(responseRaw: ResponseRaw){
+        dailyForecast.clear()
+        hourlyForecast.clear()
         val parsedResponse:JsonObject = Json.parseToJsonElement(responseRaw.rawResponse).jsonObject
         try{
             var mostlyWeatherIs:IntArray = IntArray(WeatherCondition.entries.size)

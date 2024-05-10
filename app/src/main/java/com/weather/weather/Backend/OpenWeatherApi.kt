@@ -18,8 +18,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.UnknownHostException
-import java.sql.Timestamp
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.TimeZone
@@ -30,7 +28,10 @@ class OpenWeatherApi(weatherApiKey:String, settingsData:SettingsData, previousRe
     private var responseRaw: ResponseRaw? = null
     init{
         this.responseRaw = previousResponse
-        GlobalScope.launch { start() }
+    }
+    override fun start(forceCache: Boolean){
+        val httpUrl:String = "https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${weatherApiKey}"
+        GlobalScope.launch { start(httpUrl,responseRaw,forceCache) }
     }
     companion object{
         suspend fun getLatLong(city: String,weatherApiKey: String?):LatNLong?{
@@ -42,8 +43,8 @@ class OpenWeatherApi(weatherApiKey:String, settingsData:SettingsData, previousRe
         private suspend fun _getLatLong(city: String,weatherApiKey: String? = null,length:Int = 1):Array<LatNLong>?{
             try{
                 val httpClient:OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5000,TimeUnit.SECONDS)
-                    .readTimeout(5000,TimeUnit.SECONDS)
+                    .callTimeout(5,TimeUnit.SECONDS)
+                    .readTimeout(5,TimeUnit.SECONDS)
                     .build()
                 val httpUrl:String = "https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=${length}&appid=${weatherApiKey}"
                 val request = Request.Builder().url(httpUrl).build()
@@ -78,41 +79,9 @@ class OpenWeatherApi(weatherApiKey:String, settingsData:SettingsData, previousRe
     override fun gRawResponse():ResponseRaw?{
         return responseRaw
     }
-    private suspend fun start(){
-        //TODO put in one function and simply pass another url?
-        //TODO If you do it then make it not call on startup but rather on call start()
-        try {
-            val prevResponse:ResponseRaw? = responseRaw
-            val newResponse:ResponseRaw
-            if(prevResponse != null && prevResponse.dateResponse > (ZonedDateTime.now().toEpochSecond() - 3600)){
-                newResponse  = prevResponse
-            } else{
-                val httpClient:OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5000,TimeUnit.SECONDS)
-                    .readTimeout(5000,TimeUnit.SECONDS)
-                    .build()
-                val httpUrl:String = "https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${weatherApiKey}"
-                val request = Request.Builder().url(httpUrl).build()
-                val response:String = httpClient.newCall(request).execute().use {
-                    it.body!!.string()
-                }
-                newResponse  = ResponseRaw(
-                    rawResponse = response,
-                    dateResponse = ZonedDateTime.now().toEpochSecond()
-                )
-            }
-            processData(newResponse)
-        } catch (e:Exception){
-            if(e is UnknownHostException){
-                notifyErrorListeners(WeatherErrors.UnknownHost)
-            }
-            else{
-                notifyErrorListeners(WeatherErrors.Unknown)
-                Log.e("weatherError",e.stackTraceToString())
-            }
-        }
-    }
-    private fun processData(responseRaw: ResponseRaw){
+    protected override fun processData(responseRaw: ResponseRaw){
+        dailyForecast.clear()
+        hourlyForecast.clear()
         val parsedResponse:JsonObject = Json.parseToJsonElement(responseRaw.rawResponse).jsonObject
         try{
             var mostlyWeatherIs:IntArray = IntArray(WeatherCondition.entries.size)
@@ -155,6 +124,7 @@ class OpenWeatherApi(weatherApiKey:String, settingsData:SettingsData, previousRe
                     dailyForecast.last().condition = WeatherCondition.entries[mostlyWeatherIs.indexOf(mostlyWeatherIs.max())]
                 }
             }
+            // TODO?
             // because openWeather starts sending from current time
             // the last day mayyy be not full, for example contain only one - two hours
             this.responseRaw = responseRaw

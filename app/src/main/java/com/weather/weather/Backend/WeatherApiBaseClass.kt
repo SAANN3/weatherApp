@@ -1,10 +1,17 @@
 package com.weather.weather.Backend
 
+import android.util.Log
 import com.weather.weather.DaysOfTheWeek
 import com.weather.weather.TemperatureSymbols
 import com.weather.weather.WeatherCondition
 import com.weather.weather.WeatherErrors
 import com.weather.weather.WeatherProviders
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.IOException
+import java.net.UnknownHostException
+import java.time.ZonedDateTime
+import java.util.concurrent.TimeUnit
 import kotlin.math.round
 
 data class SettingsData(
@@ -49,8 +56,8 @@ open class WeatherApiBaseClass(
     protected val weatherProvider: WeatherProviders
     protected val hourlyForecast: MutableList<HourForecast> = mutableListOf()
     protected val dailyForecast: MutableList<DailyForecast> = mutableListOf()
-    protected val errorListeners: MutableList<(WeatherErrors) -> Unit> = mutableListOf()
-    protected val listeners: MutableList<() -> Unit> = mutableListOf()
+    private val errorListeners: MutableList<(WeatherErrors) -> Unit> = mutableListOf()
+    private val listeners: MutableList<() -> Unit> = mutableListOf()
     init{
         this.weatherApiKey = weatherApiKey
         this.latitude = settingsData.latitude
@@ -66,6 +73,53 @@ open class WeatherApiBaseClass(
         suspend fun getLatLong(city: String,weatherApiKey: String?,length: Int):Array<LatNLong>?{
             return null
         }
+    }
+    open fun start(forceCache: Boolean = false){
+
+    }
+    protected open suspend fun start(url:String,responseRaw: ResponseRaw?,forceCache:Boolean){
+        if(forceCache && responseRaw == null){
+            notifyErrorListeners(WeatherErrors.CacheForceLoadFailed)
+            return
+        }
+        try {
+            val prevResponse:ResponseRaw? = responseRaw
+            val newResponse:ResponseRaw
+            if(forceCache && prevResponse != null ||
+                (prevResponse != null && prevResponse.dateResponse > (ZonedDateTime.now().toEpochSecond() - 3600))
+            ){
+                newResponse  = prevResponse
+            } else{
+                val httpClient: OkHttpClient = OkHttpClient().newBuilder()
+                    .callTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                val httpUrl:String = url
+                val request = Request.Builder().url(httpUrl).build()
+                val response:String = httpClient.newCall(request).execute().use {
+                    it.body!!.string()
+                }
+                newResponse  = ResponseRaw(
+                    rawResponse = response,
+                    dateResponse = ZonedDateTime.now().toEpochSecond()
+                )
+            }
+            processData(newResponse)
+        } catch (e:Exception){
+            if(e is UnknownHostException){
+                notifyErrorListeners(WeatherErrors.UnknownHost)
+            }
+            else if(e is IOException){
+                notifyErrorListeners(WeatherErrors.IOError)
+            }
+            else{
+                notifyErrorListeners(WeatherErrors.Unknown)
+                Log.e("weatherError",e.stackTraceToString())
+            }
+        }
+    }
+    protected open fun processData(responseRaw: ResponseRaw){
+
     }
     protected fun celsiusToFahrenheit(celsius:Float):Float{
         return round(((celsius * 9/5) + 32)*10)/10

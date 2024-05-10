@@ -1,6 +1,7 @@
 package com.weather.weather.Ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,18 +18,27 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.weather.weather.R
+import com.weather.weather.WeatherErrors
 
 class WeatherBar {
-
+    val weatherErrors = mutableStateListOf<WeatherErrors>()
+    fun onError(weatherError: WeatherErrors){
+        weatherErrors += weatherError
+    }
+    fun onComplete(){
+        weatherErrors.clear()
+    }
     @Composable
     fun Render(currentContext: MutableState<String>, modifier: Modifier = Modifier) {
         var expanded by remember { mutableStateOf(false) }
@@ -70,13 +80,30 @@ class WeatherBar {
                             }
                         )
                     }
-
-
+                }
+            }
+            if(weatherErrors.size != 0){
+                weatherErrors.forEach{
+                    ErrorMessage(weatherError = it)
                 }
             }
             Divider(modifier = Modifier
                 .fillMaxWidth(1f)
                 .height(1.dp))
+        }
+    }
+    @Composable
+    fun ErrorMessage(
+        weatherError: WeatherErrors
+    ){
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.errorContainer)
+        ){
+            Text(
+                text = "[ERROR]:${weatherError.message}",
+                color = MaterialTheme.colorScheme.error)
         }
     }
 }

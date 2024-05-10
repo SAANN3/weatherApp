@@ -32,6 +32,9 @@ class DaysWeatherLong(controller: Controller) {
         forecast.clear()
         forecast += controller.getDailyForecast()
     }
+    fun resetForecast(){
+        forecast.clear()
+    }
     @Composable
     fun Render(modifier: Modifier = Modifier){
         Column(

@@ -33,6 +33,9 @@ class HourWeatherShort(controller: Controller) {
         forecast.clear()
         forecast += controller.getHourlyForecast().slice(0..24)
     }
+    fun resetForecast(){
+        forecast.clear()
+    }
     @Composable
     fun Render(modifier: Modifier = Modifier) {
         val scrollState = rememberScrollState()

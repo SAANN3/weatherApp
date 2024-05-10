@@ -39,8 +39,10 @@ enum class WeatherCondition(val value:String){
     PARTLYCLOUDY("Cloudy"),
     CLOUDY("Cloudy")
 }
-enum class WeatherErrors(val message:String?){
+enum class WeatherErrors(val message:String = ""){
     UnknownHost("Either site is down or you are offline"),
-    ApiKeyInvalid("Invalid api key"),
+    IOError("Either site is down or response timeout was reached"),
+    CacheForceLoadFailed("Loading previous forecast from cache failed"),
+    ApiKeyInvalid("Invalid api key, change key in settings"),
     Unknown("Something that we couldn't catch happened,logs are printed")
 }

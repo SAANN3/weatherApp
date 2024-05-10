@@ -93,14 +93,32 @@ class Controller {
             }
         }
         weatherApi.subscribeError(this::onError)
+        weatherApi.subscribeError(weatherBar::onError)
         weatherApi.subscribe(this::saveLastResponse)
         weatherApi.subscribe(hourWeatherShort::onForecastChange)
         weatherApi.subscribe(daysWeatherLong::onForecastChange)
         weatherApi.subscribe(mainScreenWeather::onForecastChange)
+        weatherApi.subscribe(weatherBar::onComplete)
+        weatherApi.start()
     }
     private fun onError(error: WeatherErrors){
-        //TODO
-        Log.e("weatherError",error.toString())
+        when(error){
+            WeatherErrors.UnknownHost -> {
+                weatherApi.start(true)
+            }
+            WeatherErrors.CacheForceLoadFailed -> {
+
+            }
+            WeatherErrors.IOError -> {
+                weatherApi.start(true)
+            }
+            WeatherErrors.ApiKeyInvalid -> {
+                weatherApi.start(true)
+            }
+            else -> {
+                Log.e("weatherError", "[cauht]:$error")
+            }
+        }
     }
     private fun saveLastResponse(){
         val requestRaw:ResponseRaw? = weatherApi.gRawResponse()
@@ -140,6 +158,9 @@ class Controller {
     }
     fun setWeatherApi(apiKey:String,weatherProvider: WeatherProviders){
         if(dataWorker.getDataString("weatherProvider") != weatherProvider.toString()){
+            daysWeatherLong.resetForecast()
+            hourWeatherShort.resetForecast()
+            mainScreenWeather.resetForecast()
             dataWorker.removeDataString("previousResponse")
             dataWorker.removeDataString("previousDateResponse")
         }
