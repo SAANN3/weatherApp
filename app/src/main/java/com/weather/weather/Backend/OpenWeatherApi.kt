@@ -15,17 +15,18 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.UnknownHostException
-import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.sql.Timestamp
+import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
-//TODO find if rly needed to respond on errors
-class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = null)
-    : WeatherApiBaseClass(null,settingsData) {
+
+class OpenWeatherApi(weatherApiKey:String, settingsData:SettingsData, previousResponse : ResponseRaw? = null)
+    : WeatherApiBaseClass(weatherApiKey,settingsData) {
     private var responseRaw: ResponseRaw? = null
     init{
         this.responseRaw = previousResponse
@@ -33,10 +34,10 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
     }
     companion object{
         suspend fun getLatLong(city: String,weatherApiKey: String?):LatNLong?{
-            return _getLatLong(city, weatherApiKey)?.get(0)
+            return _getLatLong(city,weatherApiKey)?.get(0)
         }
         suspend fun getLatLong(city: String,weatherApiKey: String?,length: Int):Array<LatNLong>?{
-            return _getLatLong(city, weatherApiKey, length)
+            return _getLatLong(city,weatherApiKey,length)
         }
         private suspend fun _getLatLong(city: String,weatherApiKey: String? = null,length:Int = 1):Array<LatNLong>?{
             try{
@@ -44,30 +45,31 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
                     .callTimeout(5000,TimeUnit.SECONDS)
                     .readTimeout(5000,TimeUnit.SECONDS)
                     .build()
-                val httpUrl:String = "https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=${length}&language=en&format=json"
+                val httpUrl:String = "https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=${length}&appid=${weatherApiKey}"
                 val request = Request.Builder().url(httpUrl).build()
                 val response:String = httpClient.newCall(request).execute().use {
                     it.body!!.string()
                 }
-                val parsedResponse:JsonObject = Json.parseToJsonElement(response).jsonObject
+                val parsedResponse:JsonArray = Json.parseToJsonElement(response).jsonArray
                 val parsedResults:MutableList<LatNLong> = mutableListOf()
-                val resultsOccurrence:JsonArray = parsedResponse["results"]!!.jsonArray
-                resultsOccurrence.forEach{
+                parsedResponse.forEach{
                     val resultObject:JsonObject = it.jsonObject;
-                    val latitude:Float = resultObject["latitude"]!!.jsonPrimitive.float
-                    val longitude:Float = resultObject["longitude"]!!.jsonPrimitive.float
+                    val latitude:Float = resultObject["lat"]!!.jsonPrimitive.float
+                    val longitude:Float = resultObject["lon"]!!.jsonPrimitive.float
                     val findedCity:String = resultObject["name"]!!.jsonPrimitive.content
                     parsedResults.add(
                         LatNLong(
-                        latitude = latitude,
-                        longitude = longitude,
-                        city = findedCity
-                    ))
+                            latitude = latitude,
+                            longitude = longitude,
+                            city = findedCity
+                        ))
                 }
                 return parsedResults.toTypedArray()
             }catch (e:Exception){
                 Log.e("weatherError",e.stackTraceToString())
-                // TODO catch in static
+                //it will be a huge pain to work with static
+                //so i blame everything on 'unknown city'
+                //TODO catch error in static?
             }
             return null
         }
@@ -77,7 +79,9 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
         return responseRaw
     }
     private suspend fun start(){
-        try{
+        //TODO put in one function and simply pass another url?
+        //TODO If you do it then make it not call on startup but rather on call start()
+        try {
             val prevResponse:ResponseRaw? = responseRaw
             val newResponse:ResponseRaw
             if(prevResponse != null && prevResponse.dateResponse > (ZonedDateTime.now().toEpochSecond() - 3600)){
@@ -87,7 +91,7 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
                     .callTimeout(5000,TimeUnit.SECONDS)
                     .readTimeout(5000,TimeUnit.SECONDS)
                     .build()
-                val httpUrl:String = "https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,weather_code"
+                val httpUrl:String = "https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${weatherApiKey}"
                 val request = Request.Builder().url(httpUrl).build()
                 val response:String = httpClient.newCall(request).execute().use {
                     it.body!!.string()
@@ -98,8 +102,7 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
                 )
             }
             processData(newResponse)
-        }
-        catch (e:Exception){
+        } catch (e:Exception){
             if(e is UnknownHostException){
                 notifyErrorListeners(WeatherErrors.UnknownHost)
             }
@@ -113,23 +116,17 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
         val parsedResponse:JsonObject = Json.parseToJsonElement(responseRaw.rawResponse).jsonObject
         try{
             var mostlyWeatherIs:IntArray = IntArray(WeatherCondition.entries.size)
-            val hourly:JsonObject = parsedResponse["hourly"]!!.jsonObject
-            val hourlyTemperature:JsonArray = hourly["temperature_2m"]!!.jsonArray
-            val hourlyWeatherCodes:JsonArray = hourly["weather_code"]!!.jsonArray
-            val hourlyTime:JsonArray = hourly["time"]!!.jsonArray
-            for (i in hourlyTemperature.indices){
-                val timeZone:ZonedDateTime = LocalDateTime.parse(hourlyTime[i].jsonPrimitive.content).toInstant(ZoneOffset.UTC).atZone(TimeZone.getDefault().toZoneId())
-                if((timeZone.hour != LocalDateTime.now().hour ||
-                    timeZone.dayOfMonth != LocalDateTime.now().dayOfMonth) &&
-                    hourlyForecast.size == 0){
-                    continue
-                }
+            val hourlyTemperature:JsonArray = parsedResponse["list"]!!.jsonArray
+            hourlyTemperature.forEach {
+                val jsonObject:JsonObject = it.jsonObject
+                val mainObject:JsonObject = jsonObject["main"]!!.jsonObject
+                val timeZone:ZonedDateTime = Instant.ofEpochSecond(jsonObject["dt"]!!.jsonPrimitive.long).atZone(TimeZone.getDefault().toZoneId())
                 val hourWeather: HourForecast = HourForecast(
                     temperature = when(temperatureSymbol){
-                        TemperatureSymbols.CELSIUS -> hourlyTemperature[i].jsonPrimitive.float
-                        TemperatureSymbols.FAHRENHEIT -> celsiusToFahrenheit(hourlyTemperature[i].jsonPrimitive.float)
+                        TemperatureSymbols.CELSIUS -> kelvinToCelcius(mainObject["temp"]!!.jsonPrimitive.float)
+                        TemperatureSymbols.FAHRENHEIT -> celsiusToFahrenheit(kelvinToCelcius(mainObject["temp"]!!.jsonPrimitive.float))
                     } ,
-                    weatherCondition = formatWeatherCode(hourlyWeatherCodes[i].jsonPrimitive.int),
+                    weatherCondition = formatWeatherCode(jsonObject["weather"]!!.jsonArray[0].jsonObject["id"]!!.jsonPrimitive.int),
                     hour = timeZone.hour,
                     dayOfMonth = timeZone.dayOfMonth,
                     dayOfWeek =  DaysOfTheWeek.entries[timeZone.dayOfWeek.value-1]
@@ -158,22 +155,41 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
                     dailyForecast.last().condition = WeatherCondition.entries[mostlyWeatherIs.indexOf(mostlyWeatherIs.max())]
                 }
             }
+            // because openWeather starts sending from current time
+            // the last day mayyy be not full, for example contain only one - two hours
             this.responseRaw = responseRaw
             notifyListeners()
         }catch (e:Exception){
-            //???
-            notifyErrorListeners(WeatherErrors.Unknown)
-            Log.e("weatherError",e.stackTraceToString())
+            val error:WeatherErrors? = getErrorFromResponse(parsedResponse)
+            if(error !=null){
+                notifyErrorListeners(error)
+            } else{
+                notifyErrorListeners(WeatherErrors.Unknown)
+                Log.e("weatherError",e.stackTraceToString())
+            }
+
+        }
+    }
+    private fun getErrorFromResponse(parsedResponse:JsonObject):WeatherErrors?{
+        try {
+            val code:Int =  parsedResponse["cod"]!!.jsonPrimitive.int
+            if(code == 401){
+                return WeatherErrors.ApiKeyInvalid
+            } else {
+                return WeatherErrors.Unknown
+            }
+        } catch (e:Exception){
+            return null
         }
     }
     private fun formatWeatherCode(code:Int):WeatherCondition{
         return when(code){
-            0 -> WeatherCondition.CLEAR
-            in (1..2) -> WeatherCondition.PARTLYCLOUDY
-            3 -> WeatherCondition.CLOUDY
-            in (4..67) -> WeatherCondition.RAIN
-            in (68..86) -> WeatherCondition.SNOW
-            in (95..99) -> WeatherCondition.THUNDERSTORM
+            in (200..299) -> WeatherCondition.THUNDERSTORM
+            in (300..599) -> WeatherCondition.RAIN
+            in (600..699) -> WeatherCondition.SNOW
+            in (700..800) -> WeatherCondition.CLEAR // the fuck is atmosphere?
+            in (801..802) -> WeatherCondition.PARTLYCLOUDY
+            in (803..810) -> WeatherCondition.CLOUDY
             else -> WeatherCondition.CLEAR
         }
     }

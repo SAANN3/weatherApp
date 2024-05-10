@@ -228,7 +228,8 @@ class WeatherSettings(controller: Controller) {
             SearchUi(
                 city = city,
                 changeUi = changeUi,
-                weatherProvider = weatherProvider
+                weatherProvider = weatherProvider,
+                key = key
             )
         }
     }
@@ -236,7 +237,8 @@ class WeatherSettings(controller: Controller) {
     fun SearchUi(
         weatherProvider: MutableState<WeatherProviders>,
         city: MutableState<String>,
-        changeUi: MutableState<Boolean>
+        changeUi: MutableState<Boolean>,
+        key: MutableState<String>
     ){
         Column(
             modifier = Modifier
@@ -275,7 +277,7 @@ class WeatherSettings(controller: Controller) {
                     GlobalScope.launch {
                         GlobalScope.async {
                             findedCity.value =
-                                controller.getCityFromNet(city.value, weatherProvider.value)
+                                controller.getCityFromNet(city.value, weatherProvider.value, key.value)
                         }.await()
                     }
                 },
@@ -324,7 +326,10 @@ class WeatherSettings(controller: Controller) {
             Row(verticalAlignment = Alignment.CenterVertically){
                 RadioButton(
                     selected = weatherProvider.value == WeatherProviders.OPENMETEO,
-                    onClick = { weatherProvider.value = WeatherProviders.OPENMETEO }
+                    onClick = {
+                        weatherProvider.value = WeatherProviders.OPENMETEO
+                        key.value = ""
+                    }
                 )
                 Text(text = "OpenMeteo")
                 RadioButton(
@@ -338,7 +343,8 @@ class WeatherSettings(controller: Controller) {
                     value = key.value,
                     onValueChange = {key.value = it},
                     label = {Text("Insert api key")},
-                    singleLine = true)
+                    singleLine = true,
+                    isError = key.value == "")
             }
             Text(text = "Select temperature unit", fontSize = 24.sp)
             Row(verticalAlignment = Alignment.CenterVertically) {

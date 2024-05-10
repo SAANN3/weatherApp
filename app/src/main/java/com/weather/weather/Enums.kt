@@ -39,3 +39,8 @@ enum class WeatherCondition(val value:String){
     PARTLYCLOUDY("Cloudy"),
     CLOUDY("Cloudy")
 }
+enum class WeatherErrors(val message:String?){
+    UnknownHost("Either site is down or you are offline"),
+    ApiKeyInvalid("Invalid api key"),
+    Unknown("Something that we couldn't catch happened,logs are printed")
+}

@@ -1,9 +1,9 @@
 package com.weather.weather.Backend
 
-import android.util.Log
 import com.weather.weather.DaysOfTheWeek
 import com.weather.weather.TemperatureSymbols
 import com.weather.weather.WeatherCondition
+import com.weather.weather.WeatherErrors
 import com.weather.weather.WeatherProviders
 import kotlin.math.round
 
@@ -49,6 +49,7 @@ open class WeatherApiBaseClass(
     protected val weatherProvider: WeatherProviders
     protected val hourlyForecast: MutableList<HourForecast> = mutableListOf()
     protected val dailyForecast: MutableList<DailyForecast> = mutableListOf()
+    protected val errorListeners: MutableList<(WeatherErrors) -> Unit> = mutableListOf()
     protected val listeners: MutableList<() -> Unit> = mutableListOf()
     init{
         this.weatherApiKey = weatherApiKey
@@ -59,26 +60,38 @@ open class WeatherApiBaseClass(
         this.weatherProvider = settingsData.weatherProvider
     }
     companion object{
-        suspend fun getLatLong(city: String):LatNLong?{
+        suspend fun getLatLong(city: String,weatherApiKey: String?):LatNLong?{
             return null
         }
-        suspend fun getLatLong(city: String,length: Int):Array<LatNLong>?{
+        suspend fun getLatLong(city: String,weatherApiKey: String?,length: Int):Array<LatNLong>?{
             return null
         }
     }
-    protected fun celsiusToKelvin(celsius:Float):Float{
+    protected fun celsiusToFahrenheit(celsius:Float):Float{
         return round(((celsius * 9/5) + 32)*10)/10
     }
-    protected fun kelvinToCelsius(kelvin:Float):Float{
-        return kelvin - 273.1f
+    protected fun fahrenheitToCelsius(fahrenheit:Float):Float{
+        return round(((fahrenheit - 32)*5/9)*10)/10
+    }
+    protected fun kelvinToCelcius(kelvin:Float):Float{
+        return round((kelvin - 273.15f)*10)/10
     }
     protected fun notifyListeners(){
         listeners.forEach {
             it()
         }
     }
+    protected fun notifyErrorListeners(error: WeatherErrors){
+        errorListeners.forEach {
+            it(error)
+        }
+    }
     fun subscribe(listener:() -> Unit){
         listeners.add(listener)
+    }
+
+    fun subscribeError(errorListener:(WeatherErrors) -> Unit){
+        errorListeners.add(errorListener)
     }
     // using g because kotlin generates its own getters and they clashing
     open fun gRawResponse():ResponseRaw?{
