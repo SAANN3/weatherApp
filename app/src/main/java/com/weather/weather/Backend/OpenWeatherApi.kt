@@ -43,8 +43,8 @@ class OpenWeatherApi(weatherApiKey:String, settingsData:SettingsData, previousRe
         private suspend fun _getLatLong(city: String,weatherApiKey: String? = null,length:Int = 1):Array<LatNLong>?{
             try{
                 val httpClient:OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5,TimeUnit.SECONDS)
-                    .readTimeout(5,TimeUnit.SECONDS)
+                    .callTimeout(10,TimeUnit.SECONDS)
+                    .readTimeout(10,TimeUnit.SECONDS)
                     .build()
                 val httpUrl:String = "https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=${length}&appid=${weatherApiKey}"
                 val request = Request.Builder().url(httpUrl).build()

@@ -54,6 +54,13 @@ class Controller {
             createWeatherApi()
         }
     }
+    private fun resetResponse(){
+        daysWeatherLong.resetForecast()
+        hourWeatherShort.resetForecast()
+        mainScreenWeather.resetForecast()
+        dataWorker.removeDataString("previousResponse")
+        dataWorker.removeDataString("previousDateResponse")
+    }
     private fun createWeatherApi(){
         //called only if everything set up
         val key:String? = dataWorker.getDataString("apiKey")
@@ -92,13 +99,13 @@ class Controller {
                 )
             }
         }
+        weatherBar.onComplete()
         weatherApi.subscribeError(this::onError)
         weatherApi.subscribeError(weatherBar::onError)
         weatherApi.subscribe(this::saveLastResponse)
         weatherApi.subscribe(hourWeatherShort::onForecastChange)
         weatherApi.subscribe(daysWeatherLong::onForecastChange)
         weatherApi.subscribe(mainScreenWeather::onForecastChange)
-        weatherApi.subscribe(weatherBar::onComplete)
         weatherApi.start()
     }
     private fun onError(error: WeatherErrors){
@@ -158,11 +165,7 @@ class Controller {
     }
     fun setWeatherApi(apiKey:String,weatherProvider: WeatherProviders){
         if(dataWorker.getDataString("weatherProvider") != weatherProvider.toString()){
-            daysWeatherLong.resetForecast()
-            hourWeatherShort.resetForecast()
-            mainScreenWeather.resetForecast()
-            dataWorker.removeDataString("previousResponse")
-            dataWorker.removeDataString("previousDateResponse")
+            resetResponse()
         }
         dataWorker.setData("apiKey",apiKey)
         dataWorker.setData("weatherProvider",weatherProvider.toString())
@@ -173,6 +176,24 @@ class Controller {
     fun setWeatherMetrics(temperatureSymbol: TemperatureSymbols){
         dataWorker.setData("temperatureSymbol",temperatureSymbol.toString())
         createWeatherApi()
+    }
+    suspend fun setCity(city:String){
+        resetResponse()
+        val latNlong:WeatherApiBaseClass.LatNLong? = when(weatherApi.gWeatherProvider()){
+            WeatherProviders.OPENMETEO -> {
+                GlobalScope.async {OpenMeteoApi.getLatLong(city,weatherApi.gWeatherKey())}.await()
+            }
+            WeatherProviders.OPENWEATHER -> {
+                GlobalScope.async {OpenWeatherApi.getLatLong(city,weatherApi.gWeatherKey())}.await()
+            }
+            else -> { null }
+        }
+        if(latNlong != null) {
+            dataWorker.setData("latitude", latNlong.latitude)
+            dataWorker.setData("longitude", latNlong.longitude)
+            dataWorker.setData("city", latNlong.city)
+            createWeatherApi()
+        }
     }
     fun getHourlyForecast():MutableList<WeatherApiBaseClass.HourForecast>{
         return weatherApi.gHourlyForecast()

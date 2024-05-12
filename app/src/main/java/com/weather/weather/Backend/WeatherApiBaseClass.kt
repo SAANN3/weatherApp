@@ -91,8 +91,8 @@ open class WeatherApiBaseClass(
                 newResponse  = prevResponse
             } else{
                 val httpClient: OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5, TimeUnit.SECONDS)
-                    .readTimeout(5, TimeUnit.SECONDS)
+                    .callTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(10, TimeUnit.SECONDS)
                     .build()
                 val httpUrl:String = url
                 val request = Request.Builder().url(httpUrl).build()

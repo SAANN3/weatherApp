@@ -31,7 +31,13 @@ class HourWeatherShort(controller: Controller) {
     }
     fun onForecastChange(){
         forecast.clear()
-        forecast += controller.getHourlyForecast().slice(0..24)
+        val hourlyForecst = controller.getHourlyForecast()
+        if(hourlyForecst.size < 25){
+            forecast += hourlyForecst
+        } else {
+            forecast += hourlyForecst.slice(0..24)
+        }
+
     }
     fun resetForecast(){
         forecast.clear()

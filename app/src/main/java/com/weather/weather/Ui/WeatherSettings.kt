@@ -127,6 +127,31 @@ class WeatherSettings(controller: Controller) {
                 }
 
             }
+            run {
+                val changeUi = remember { mutableStateOf(false )}
+                val city = remember { mutableStateOf(controller.getCity()) }
+                if(changeUi.value){
+                    GlobalScope.launch { controller.setCity(city.value) }
+                }
+                ItemInList(
+                    text = "Change city",
+                    showSaveButton = false,
+                    onCancelFunction = { city.value = controller.getCity()},
+                    forceClose = changeUi
+                ){
+                    Column {
+                        val key = remember { mutableStateOf(controller.getWeatherKey()) }
+                        val weatherProvider = remember { mutableStateOf(controller.getWeatherProvider())}
+                        SearchUi(
+                            weatherProvider = weatherProvider,
+                            city = city,
+                            changeUi = changeUi,
+                            key = key,
+                            takeFullHeight = false,
+                            showArrow = false)
+                    }
+                }
+            }
             ItemInList(text = "Debug info") {
                 Column(
                     modifier = Modifier.padding(15.dp)
@@ -148,10 +173,16 @@ class WeatherSettings(controller: Controller) {
         text:String,
         onCancelFunction: () -> Unit = {},
         onSaveFunction: () -> Unit = {},
+        showSaveButton:Boolean = true,
+        forceClose: MutableState<Boolean> = mutableStateOf(false),
         content:@Composable () -> Unit
     ){
         var visible by remember { mutableStateOf(false) }
         val onDismissRequest: () -> Unit = {visible = !visible}
+        if(forceClose.value){
+            visible = false;
+            forceClose.value = false
+        }
         if(visible)Dialog(onDismissRequest = { onDismissRequest();onCancelFunction()},) {
             Card(
                 modifier = Modifier
@@ -173,11 +204,13 @@ class WeatherSettings(controller: Controller) {
                         }) {
                             Text("Cancel")
                         }
-                        TextButton(onClick = {
-                            onSaveFunction()
-                            visible = !visible
-                        }) {
-                            Text("Save")
+                        if(showSaveButton){
+                            TextButton(onClick = {
+                                onSaveFunction()
+                                visible = !visible
+                            }) {
+                                Text("Save")
+                            }
                         }
                     }
 
@@ -238,12 +271,15 @@ class WeatherSettings(controller: Controller) {
         weatherProvider: MutableState<WeatherProviders>,
         city: MutableState<String>,
         changeUi: MutableState<Boolean>,
-        key: MutableState<String>
+        key: MutableState<String>,
+        takeFullHeight:Boolean = true,
+        showArrow:Boolean = true
     ){
+        //TODO make country code supported
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .then(if (takeFullHeight) Modifier.fillMaxHeight() else Modifier)
                 .padding(50.dp),
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -256,16 +292,18 @@ class WeatherSettings(controller: Controller) {
                 modifier = Modifier.offset(-offsetForBackButton.value),
                 verticalAlignment = Alignment.CenterVertically
             ){
-                TextButton(
-                    onClick = { changeUi.value = !changeUi.value }
-                ) {
-                    Image(
-                        painterResource(id = R.drawable.baseline_keyboard_backspace_24), "",
-                        colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.onSizeChanged {
-                            offsetForBackButton.value = with(localDensity) { it.width.toDp() }
-                        },
-                    )
+                if(showArrow) {
+                    TextButton(
+                        onClick = { changeUi.value = !changeUi.value }
+                    ) {
+                        Image(
+                            painterResource(id = R.drawable.baseline_keyboard_backspace_24), "",
+                            colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.onSizeChanged {
+                                offsetForBackButton.value = with(localDensity) { it.width.toDp() }
+                            },
+                        )
+                    }
                 }
             OutlinedTextField(
                 modifier = Modifier
@@ -293,7 +331,7 @@ class WeatherSettings(controller: Controller) {
                                 city.value = it.city
                                 changeUi.value = !changeUi.value; },
                             modifier = Modifier.fillMaxWidth()){
-                            Text(text = "${it.city}")
+                            Text(text = "${it.city}", textAlign = TextAlign.Center)
                         }
                         Divider(modifier = Modifier
                             .fillMaxWidth(1f)

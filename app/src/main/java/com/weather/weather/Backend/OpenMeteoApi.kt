@@ -43,8 +43,8 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
         private suspend fun _getLatLong(city: String,weatherApiKey: String? = null,length:Int = 1):Array<LatNLong>?{
             try{
                 val httpClient:OkHttpClient = OkHttpClient().newBuilder()
-                    .callTimeout(5,TimeUnit.SECONDS)
-                    .readTimeout(5,TimeUnit.SECONDS)
+                    .callTimeout(10,TimeUnit.SECONDS)
+                    .readTimeout(10,TimeUnit.SECONDS)
                     .build()
                 val httpUrl:String = "https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=${length}&language=en&format=json"
                 val request = Request.Builder().url(httpUrl).build()
@@ -90,8 +90,8 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
             val hourlyTime:JsonArray = hourly["time"]!!.jsonArray
             for (i in hourlyTemperature.indices){
                 val timeZone:ZonedDateTime = LocalDateTime.parse(hourlyTime[i].jsonPrimitive.content).toInstant(ZoneOffset.UTC).atZone(TimeZone.getDefault().toZoneId())
-                if((timeZone.hour != LocalDateTime.now().hour ||
-                    timeZone.dayOfMonth != LocalDateTime.now().dayOfMonth) &&
+                if((timeZone.hour != LocalDateTime.now().hour &&
+                    timeZone.dayOfMonth < LocalDateTime.now().dayOfMonth) &&
                     hourlyForecast.size == 0){
                     continue
                 }
