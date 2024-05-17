@@ -64,11 +64,18 @@ class DaysWeatherLong(controller: Controller) {
                 .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ){
-            Text(stringResource(day.shortName))
-            Spacer(modifier = Modifier.weight(1.0f))
-            Text(type.value)
-            Spacer(modifier = Modifier.weight(1.0f))
-            Text("$minTemperature / $maxTemperature ${controller.getWeatherMetrics().symbol}")
+            Text(
+                stringResource(day.shortName),
+                modifier = Modifier.weight(0.4f)
+            )
+            Text(
+                type.value,
+                modifier = Modifier.weight(0.3f)
+            )
+            Text(
+                "$minTemperature / $maxTemperature ${controller.getWeatherMetrics().symbol}",
+                modifier = Modifier.weight(0.3f)
+            )
         }
 
     }
