@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.weather.weather.Backend.WeatherApiBaseClass
 import com.weather.weather.Controller
@@ -66,15 +67,16 @@ class DaysWeatherLong(controller: Controller) {
         ){
             Text(
                 stringResource(day.shortName),
-                modifier = Modifier.weight(0.4f)
+                modifier = Modifier.weight(0.3f),
             )
             Text(
                 type.value,
-                modifier = Modifier.weight(0.3f)
+                modifier = Modifier.weight(0.2f),
             )
             Text(
                 "$minTemperature / $maxTemperature ${controller.getWeatherMetrics().symbol}",
-                modifier = Modifier.weight(0.3f)
+                modifier = Modifier.weight(0.3f),
+                textAlign = TextAlign.Right
             )
         }
 
