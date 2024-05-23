@@ -8,8 +8,6 @@ Basically how it looks        |  Setup screen
 
 
 ## Installation
-//todo
+[Download](https://github.com/SAANN3/weatherApp/releases)  apk file and install 
 ### Or if you prefer to compile from source
 build it using android studio
-
-//todo add more?
