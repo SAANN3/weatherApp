@@ -10,6 +10,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.net.UnknownHostException
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import kotlin.math.round
@@ -117,6 +120,9 @@ open class WeatherApiBaseClass(
                 Log.e("weatherError",e.stackTraceToString())
             }
         }
+    }
+    protected fun getCurrentDate():ZonedDateTime{
+        return LocalDateTime.now().atZone(ZoneOffset.UTC)
     }
     protected open fun processData(responseRaw: ResponseRaw){
 

@@ -90,8 +90,8 @@ class OpenMeteoApi(settingsData:SettingsData, previousResponse : ResponseRaw? = 
             val hourlyTime:JsonArray = hourly["time"]!!.jsonArray
             for (i in hourlyTemperature.indices){
                 val timeZone:ZonedDateTime = LocalDateTime.parse(hourlyTime[i].jsonPrimitive.content).toInstant(ZoneOffset.UTC).atZone(TimeZone.getDefault().toZoneId())
-                if((timeZone.hour != LocalDateTime.now().hour &&
-                    timeZone.dayOfMonth < LocalDateTime.now().dayOfMonth) &&
+                if((timeZone.hour < getCurrentDate().hour &&
+                    timeZone.dayOfMonth <= getCurrentDate().dayOfMonth) &&
                     hourlyForecast.size == 0){
                     continue
                 }
